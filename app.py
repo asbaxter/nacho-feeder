@@ -14,7 +14,7 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_fed.tx
 SCHEDULE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedule_config.json")
 
 # Global variables
-current_config = {"time": "10:00", "enabled": True, "steps": 512}  # Default
+current_config = {"time": "10:00", "enabled": True, "steps": 512, "camera_name": ""}  # Default
 scheduler_thread = None
 
 def load_history():
@@ -45,6 +45,8 @@ def load_schedule():
                     # Ensure steps exists if loading from older json
                     if "steps" not in current_config:
                         current_config["steps"] = 512
+                    if "camera_name" not in current_config:
+                        current_config["camera_name"] = ""
             except:
                 pass # Use default if error
     return current_config
@@ -185,6 +187,19 @@ HTML_TEMPLATE = """
             <input type="time" id="scheduleTime" value="{{ config.time }}">
             <button class="action-btn" onclick="updateSchedule()">Update Schedule</button>
         </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+        <div class="schedule-container" style="background: #e0f2f1;">
+            <label>📹 Camera Feed</label><br>
+            <input type="text" id="cameraName" placeholder="Camera Name (e.g. nacho-cam)" value="{{ config.get('camera_name', '') }}" style="width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+            <button class="action-btn" onclick="updateCamera()">Update Camera</button>
+            <div id="video-container" style="margin-top: 15px; background: black; border-radius: 15px; overflow: hidden; display: {% if config.get('camera_name') %}block{% else %}none{% endif %};">
+                <video id="video" controls autoplay muted style="width: 100%; display: block;"></video>
+            </div>
+             <p id="cam-status" style="font-size: 0.8rem; margin-top: 5px; color: #546e7a;">
+                {% if not config.get('camera_name') %}Enter your camera name from Wyze Bridge to enable stream.{% endif %}
+            </p>
+        </div>
 
         <p id="status">System Ready</p>
         
@@ -201,6 +216,36 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        var hls = null;
+        
+        // Initialize player if camera name exists
+        {% if config.get('camera_name') %}
+        window.addEventListener('load', function() {
+            loadStream("{{ config.camera_name }}");
+        });
+        {% endif %}
+
+        function loadStream(camName) {
+            var video = document.getElementById('video');
+            var streamUrl = "http://" + window.location.hostname + ":8888/" + camName + "/stream.m3u8";
+            
+            if (Hls.isSupported()) {
+                if(hls) hls.destroy();
+                hls = new Hls();
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            }
+            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = streamUrl;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            }
+        }
+
         function updateLabel(val) { document.getElementById('stepVal').innerText = val; }
 
         function move(dir) {
@@ -216,7 +261,7 @@ HTML_TEMPLATE = """
             .then(res => res.json())
             .then(data => {
                 status.innerText = "Success! ✨";
-                setTimeout(() => { location.reload(); }, 1000); // Reload to show new history
+                setTimeout(() => { location.reload(); }, 1000); 
             })
             .catch(err => { 
                 status.innerText = "Error: Connection Lost"; 
@@ -239,6 +284,23 @@ HTML_TEMPLATE = """
             .then(data => {
                 status.innerText = "Schedule Saved! 🕒";
                 setTimeout(() => { status.innerText = "System Ready"; }, 2000);
+            });
+        }
+        
+        function updateCamera() {
+            const name = document.getElementById('cameraName').value;
+            const status = document.getElementById('status');
+            status.innerText = "Saving camera...";
+            
+            fetch('/set_schedule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({camera_name: name})
+            })
+            .then(res => res.json())
+            .then(data => {
+                status.innerText = "Camera Saved! 📹";
+                setTimeout(() => { location.reload(); }, 1000);
             });
         }
     </script>
@@ -276,12 +338,15 @@ def set_schedule():
     data = request.get_json()
     new_time = data.get('time')
     enabled = data.get('enabled', True)
-    if new_time:
-        current_config['time'] = new_time
-        current_config['enabled'] = enabled
-        save_schedule_config()
-        return jsonify(status="success", config=current_config)
-    return jsonify(status="error", message="Invalid time"), 400
+    camera_name = data.get('camera_name')
+    
+    # Update whatever keys are present
+    if new_time: current_config['time'] = new_time
+    if 'enabled' in data: current_config['enabled'] = enabled
+    if 'camera_name' in data: current_config['camera_name'] = camera_name.strip()
+    
+    save_schedule_config()
+    return jsonify(status="success", config=current_config)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

@@ -70,9 +70,45 @@ If you want the feeder to start automatically when the Pi turns on, you should u
    sudo systemctl start nacho-feeder
    ```
 
-4. **To Update later**:
+## 5. Setting up the Camera (Optional)
+If you want to use the Wyze Camera feed, you'll need to run the bridge service.
+
+1.  **Install Docker**:
+    ```bash
+    curl -sSL https://get.docker.com | sh
+    sudo usermod -aG docker pi
+    sudo apt-get install -y libffi-dev libssl-dev
+    sudo apt install -y python3-dev
+    sudo apt-get install -y python3 pip
+    sudo pip3 install docker-compose
+    ```
+
+2.  **Configure Credentials**:
+    Copy the template and edit it with your Wyze email/password and API Key.
+    *Note: Even with an API Key, the bridge typically requires your email and password to log in initially.*
+    ```bash
+    cp .env.template .env
+    nano .env
+    ```
+
+3.  **Start the Bridge**:
+    ```bash
+    docker-compose up -d
+    ```
+    *Wait about 30 seconds for it to login and start the stream.*
+
+4.  **Connect in App**:
+    - Go to the Wyze Bridge WebUI: `http://<pi-ip>:8888`
+    - Find the "name" of your camera (e.g., `porch-cam`).
+    - Go to your Nacho Feeder app.
+    - Enter `porch-cam` in the "Camera Name" box and click Update.
+
+## 6. To Update later
    Just run:
    ```bash
    git pull origin main
    sudo systemctl restart nacho-feeder
+   # If you updated docker config:
+   docker-compose pull
+   docker-compose up -d
    ```
