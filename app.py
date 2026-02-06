@@ -6,21 +6,6 @@ import schedule
 import time
 import threading
 import json
-from dotenv import load_dotenv
-import requests
-
-# Load environment variables
-load_dotenv()
-
-# Try to import wyze_sdk, but don't fail if missing (local dev without sdk)
-try:
-    from wyze_sdk import Client
-    from wyze_sdk.errors import WyzeApiError
-    WYZE_SDK_AVAILABLE = True
-except ImportError:
-    WYZE_SDK_AVAILABLE = False
-    print("Wyze SDK not found. Camera features will be disabled.")
-
 app = Flask(__name__)
 
 # Files to store data
