@@ -14,7 +14,7 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_fed.tx
 SCHEDULE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedule_config.json")
 
 # Global variables
-current_config = {"time": "10:00", "enabled": True}  # Default
+current_config = {"time": "10:00", "enabled": True, "steps": 512}  # Default
 scheduler_thread = None
 
 def load_history():
@@ -39,23 +39,26 @@ def load_schedule():
                 data = json.load(f)
                 # Handle migration or direct load
                 if isinstance(data, str): # Old format
-                     current_config = {"time": data, "enabled": True}
+                     current_config = {"time": data, "enabled": True, "steps": 512}
                 else:
                     current_config = data
+                    # Ensure steps exists if loading from older json
+                    if "steps" not in current_config:
+                        current_config["steps"] = 512
             except:
                 pass # Use default if error
     return current_config
 
-def save_schedule(time_str, enabled):
+def save_schedule_config():
     global current_config
-    current_config = {"time": time_str, "enabled": enabled}
     with open(SCHEDULE_FILE, "w") as f:
         json.dump(current_config, f)
     update_scheduler()
 
 def feed_job():
     print(f"Executing scheduled feed at {datetime.datetime.now()}")
-    motor_logic.run_motor(steps=512, direction='forward')
+    steps = current_config.get("steps", 512)
+    motor_logic.run_motor(steps=steps, direction='forward')
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
     save_history(now)
 
@@ -164,8 +167,8 @@ HTML_TEMPLATE = """
         
         <div class="slider-container">
             <label>Amount (Steps)</label><br>
-            <input type="range" id="stepSlider" min="100" max="800" value="512" oninput="updateLabel(this.value)">
-            <div class="val-display" id="stepVal">512</div>
+            <input type="range" id="stepSlider" min="100" max="800" value="{{ config.get('steps', 512) }}" oninput="updateLabel(this.value)">
+            <div class="val-display" id="stepVal">{{ config.get('steps', 512) }}</div>
         </div>
 
         <button class="forward" onclick="move('forward')">🪱 DISPENSE NOW</button>
@@ -252,11 +255,19 @@ def index():
 @app.route('/move', methods=['POST'])
 def move():
     data = request.get_json()
-    motor_logic.run_motor(steps=data.get('steps', 512), direction=data.get('direction', 'forward'))
+    steps = int(data.get('steps', 512))
+    direction = data.get('direction', 'forward')
+    
+    motor_logic.run_motor(steps=steps, direction=direction)
     
     # Update timestamp
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
     save_history(now)
+
+    # Persist the steps used if moving forward (feeding)
+    if direction == 'forward':
+        current_config['steps'] = steps
+        save_schedule_config()
         
     return jsonify(status="success", time=now)
 
@@ -266,7 +277,9 @@ def set_schedule():
     new_time = data.get('time')
     enabled = data.get('enabled', True)
     if new_time:
-        save_schedule(new_time, enabled)
+        current_config['time'] = new_time
+        current_config['enabled'] = enabled
+        save_schedule_config()
         return jsonify(status="success", config=current_config)
     return jsonify(status="error", message="Invalid time"), 400
 
