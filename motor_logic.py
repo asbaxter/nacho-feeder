@@ -1,4 +1,16 @@
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    print("RPi.GPIO not found, using mock for local development")
+    class MockGPIO:
+        BCM = "BCM"
+        OUT = "OUT"
+        def setwarnings(self, *args): pass
+        def setmode(self, *args): pass
+        def setup(self, *args): pass
+        def output(self, *args): pass
+        def cleanup(self, *args): pass
+    GPIO = MockGPIO()
 import time
 
 PINS = [17, 18, 27, 22]

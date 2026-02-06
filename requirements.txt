@@ -1,0 +1,3 @@
+flask
+schedule
+RPi.GPIO  # Uncomment this line when deploying to Raspberry Pi
