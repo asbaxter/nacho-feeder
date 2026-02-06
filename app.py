@@ -6,6 +6,20 @@ import schedule
 import time
 import threading
 import json
+from dotenv import load_dotenv
+import requests
+
+# Load environment variables
+load_dotenv()
+
+# Try to import wyze_sdk, but don't fail if missing (local dev without sdk)
+try:
+    from wyze_sdk import Client
+    from wyze_sdk.errors import WyzeApiError
+    WYZE_SDK_AVAILABLE = True
+except ImportError:
+    WYZE_SDK_AVAILABLE = False
+    print("Wyze SDK not found. Camera features will be disabled.")
 
 app = Flask(__name__)
 
@@ -16,6 +30,8 @@ SCHEDULE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedu
 # Global variables
 current_config = {"time": "10:00", "enabled": True, "steps": 512, "camera_name": ""}  # Default
 scheduler_thread = None
+wyze_client = None
+last_snapshot_url = None
 
 def load_history():
     if not os.path.exists(LOG_FILE):
@@ -188,16 +204,17 @@ HTML_TEMPLATE = """
             <button class="action-btn" onclick="updateSchedule()">Update Schedule</button>
         </div>
         
-        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
         <div class="schedule-container" style="background: #e0f2f1;">
-            <label>📹 Camera Feed</label><br>
-            <input type="text" id="cameraName" placeholder="Camera Name (e.g. nacho-cam)" value="{{ config.get('camera_name', '') }}" style="width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+            <label>📷 Camera Snapshot</label><br>
+            <input type="text" id="cameraName" placeholder="Camera Name (e.g. Porch)" value="{{ config.get('camera_name', '') }}" style="width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
             <button class="action-btn" onclick="updateCamera()">Update Camera</button>
-            <div id="video-container" style="margin-top: 15px; background: black; border-radius: 15px; overflow: hidden; display: {% if config.get('camera_name') %}block{% else %}none{% endif %};">
-                <video id="video" controls autoplay muted style="width: 100%; display: block;"></video>
+            
+            <div id="video-container" style="margin-top: 15px; background: black; border-radius: 15px; overflow: hidden; display: {% if config.get('camera_name') %}block{% else %}none{% endif %}; text-align: center;">
+                <img id="cam-snapshot" src="" style="width: 100%; display: none;" alt="Loading snapshot...">
+                <div id="cam-loader" style="padding: 20px; color: white;">Loading...</div>
             </div>
              <p id="cam-status" style="font-size: 0.8rem; margin-top: 5px; color: #546e7a;">
-                {% if not config.get('camera_name') %}Enter your camera name from Wyze Bridge to enable stream.{% endif %}
+                {% if not config.get('camera_name') %}Enter your camera name enable snapshots.{% endif %}
             </p>
         </div>
 
@@ -216,34 +233,39 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        var hls = null;
-        
-        // Initialize player if camera name exists
+        // Refresh snapshot loop
+        let snapshotInterval = null;
+
         {% if config.get('camera_name') %}
         window.addEventListener('load', function() {
-            loadStream("{{ config.camera_name }}");
+            startSnapshotLoop();
         });
         {% endif %}
 
-        function loadStream(camName) {
-            var video = document.getElementById('video');
-            var streamUrl = "http://" + window.location.hostname + ":8888/" + camName + "/stream.m3u8";
-            
-            if (Hls.isSupported()) {
-                if(hls) hls.destroy();
-                hls = new Hls();
-                hls.loadSource(streamUrl);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    video.play();
-                });
-            }
-            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = streamUrl;
-                video.addEventListener('loadedmetadata', function() {
-                    video.play();
-                });
-            }
+        function startSnapshotLoop() {
+            refreshSnapshot();
+            // Refresh every 10 seconds
+            snapshotInterval = setInterval(refreshSnapshot, 10000);
+        }
+
+        function refreshSnapshot() {
+            fetch('/camera/snapshot')
+                .then(res => res.json())
+                .then(data => {
+                    const img = document.getElementById('cam-snapshot');
+                    const loader = document.getElementById('cam-loader');
+                    
+                    if (data.url) {
+                        img.src = data.url; // The URL from Wyze is usually a directly accessible S3 link
+                        img.onload = () => {
+                            img.style.display = 'block';
+                            loader.style.display = 'none';
+                        };
+                    } else {
+                        console.log("No snapshot url:", data.error);
+                    }
+                })
+                .catch(err => console.error("Snapshot error:", err));
         }
 
         function updateLabel(val) { document.getElementById('stepVal').innerText = val; }
@@ -347,6 +369,45 @@ def set_schedule():
     
     save_schedule_config()
     return jsonify(status="success", config=current_config)
+
+@app.route('/camera/snapshot')
+def get_snapshot():
+    global wyze_client, last_snapshot_url
+    
+    if not WYZE_SDK_AVAILABLE:
+        return jsonify(error="SDK not installed"), 503
+        
+    camera_name = current_config.get('camera_name')
+    if not camera_name:
+        return jsonify(error="No camera configured"), 400
+
+    try:
+        # Initialize client if needed
+        if not wyze_client:
+            wyze_client = Client(
+                email=os.getenv('WYZE_EMAIL'),
+                password=os.getenv('WYZE_PASSWORD'),
+                key_id=os.getenv('API_ID'),
+                api_key=os.getenv('API_KEY')
+            )
+        
+        # Find the camera
+        cameras = wyze_client.cameras.list()
+        target_cam = next((c for c in cameras if str(c.nickname).lower() == camera_name.lower()), None)
+        
+        if not target_cam:
+            return jsonify(error="Camera not found"), 404
+            
+        # Get the latest thumbnail URL
+        # Note: forcing a new snapshot is complex/slow, so we usually get the latest event thumbnail
+        # For a true live snapshot we'd need to assume the camera is updating it or use specific commands
+        return jsonify(url=target_cam.thumbnail_url)
+        
+    except Exception as e:
+        print(f"Wyze Error: {e}")
+        # Invalid client? try resetting
+        wyze_client = None
+        return jsonify(error=str(e)), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
