@@ -1,6 +1,6 @@
 flask
 schedule
 RPi.GPIO  # Uncomment this line when deploying to Raspberry Pi
-wyze-sdk
-python-dotenv
-requests
+# wyze-sdk (Requires Python 3.8+, incompatible with Pi Buster)
+# python-dotenv
+# requests
