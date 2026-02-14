@@ -17,7 +17,7 @@ PINS = [17, 18, 27, 22]
 SEQUENCE = [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 1], [1, 0, 0, 1]]
 
 
-def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_back=20):
+def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_back=20, stop_event=None):
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     for pin in PINS:
@@ -35,18 +35,25 @@ def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_ba
              
              remaining = steps
              while remaining >= cycle_fwd:
-                 _move_raw(cycle_fwd, "forward")
+                 if stop_event and stop_event.is_set(): return
+                 _move_raw(cycle_fwd, "forward", stop_event)
+                 
+                 if stop_event and stop_event.is_set(): return
                  time.sleep(0.1)
-                 _move_raw(cycle_back, "reverse")
+                 
+                 _move_raw(cycle_back, "reverse", stop_event)
+                 
+                 if stop_event and stop_event.is_set(): return
                  time.sleep(0.1)
+                 
                  remaining -= cycle_net
             
              # Finish remaining steps
-             if remaining > 0:
-                 _move_raw(remaining, "forward")
+             if remaining > 0 and not (stop_event and stop_event.is_set()):
+                 _move_raw(remaining, "forward", stop_event)
         else:
             # Standard operation
-            _move_raw(steps, direction)
+            _move_raw(steps, direction, stop_event)
             
     finally:
         # Turn off pins to save 9V battery
@@ -54,11 +61,23 @@ def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_ba
             GPIO.output(pin, False)
         GPIO.cleanup()
 
-def _move_raw(steps, direction):
+def _move_raw(steps, direction, stop_event=None):
     # Reverse sequence if direction is 'reverse'
     seq = SEQUENCE if direction == "forward" else list(reversed(SEQUENCE))
     
     for _ in range(steps):
+        if stop_event and stop_event.is_set(): return
+        for step in seq:
+            for i in range(4):
+                GPIO.output(PINS[i], step[i])
+            time.sleep(0.004) # Adjust for speed
+
+def _move_raw(steps, direction, stop_event=None):
+    # Reverse sequence if direction is 'reverse'
+    seq = SEQUENCE if direction == "forward" else list(reversed(SEQUENCE))
+    
+    for _ in range(steps):
+        if stop_event and stop_event.is_set(): return
         for step in seq:
             for i in range(4):
                 GPIO.output(PINS[i], step[i])

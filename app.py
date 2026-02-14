@@ -15,6 +15,9 @@ SCHEDULE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedu
 # Global variables
 current_config = {"time": "10:00", "enabled": True, "steps": 512}  # Default
 scheduler_thread = None
+motor_thread = None
+stop_event = threading.Event()
+motor_status = "idle"
 
 def load_history():
     if not os.path.exists(LOG_FILE):
@@ -170,30 +173,46 @@ HTML_TEMPLATE = """
     <div class="card">
         <h1>🦎 Nacho Feeder</h1>
         
-            <div class="slider-container">
-            <label>Amount (Steps)</label><br>
-            <input type="range" id="stepSlider" min="100" max="2000" value="{{ config.get('steps', 512) }}" oninput="updateLabel(this.value)">
-            <div class="val-display" id="stepVal">{{ config.get('steps', 512) }}</div>
+        <div class="schedule-container" style="background: #fff3e0; border: 1px solid #ffe0b2;">
+            <h3 style="margin-top:0; color: #ef6c00;">Feeding Controls</h3>
             
-            <label class="switch" style="margin-top: 10px; display: block;">
-                <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
-                Anti-Jam (Stutter) Mode
-            </label>
-            
-            <div id="stutterOptions" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                <label style="font-size: 0.9em;">Stutter Forward Steps:</label>
-                <input type="number" id="stutterFwd" value="{{ config.get('stutter_fwd', 100) }}" style="width: 60px; margin-right: 10px;">
-                
-                <label style="font-size: 0.9em;">Back Steps:</label>
-                <input type="number" id="stutterBack" value="{{ config.get('stutter_back', 20) }}" style="width: 60px;">
+            <label>Total Amount (Steps)</label>
+            <div style="display: flex; align-items: center;">
+                <input type="range" id="stepSlider" min="100" max="2500" value="{{ config.get('steps', 512) }}" oninput="updateLabel('stepVal', this.value)" style="flex-grow: 1;">
+                <span class="val-display" id="stepVal" style="min-width: 60px; text-align: right; font-size: 1.2rem;">{{ config.get('steps', 512) }}</span>
             </div>
-        </div>
 
-        <button class="forward" onclick="move('forward')">🪱 DISPENSE NOW</button>
-        <button class="reverse" onclick="move('reverse')">🔄 CLEAR JAM</button>
+            <div style="margin: 15px 0; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <label class="switch">
+                    <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
+                    Anti-Jam / Stutter Mode
+                </label>
+                
+                <div id="stutterOptions" style="margin-top: 10px;">
+                    <label style="font-size: 0.9em;">Forward Cycle:</label>
+                    <div style="display: flex; align-items: center;">
+                        <input type="range" id="stutterFwd" min="10" max="500" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
+                        <span style="min-width: 40px; text-align: right; font-weight: bold;" id="fwdVal">{{ config.get('stutter_fwd', 100) }}</span>
+                    </div>
+                    
+                    <label style="font-size: 0.9em;">Reverse Cycle:</label>
+                    <div style="display: flex; align-items: center;">
+                        <input type="range" id="stutterBack" min="5" max="100" value="{{ config.get('stutter_back', 20) }}" oninput="updateLabel('backVal', this.value)" style="flex-grow: 1;">
+                        <span style="min-width: 40px; text-align: right; font-weight: bold;" id="backVal">{{ config.get('stutter_back', 20) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="controls">
+                <button class="forward" id="btnDispense" onclick="move('forward')">🪱 DISPENSE NOW</button>
+                <button class="reverse" id="btnStop" onclick="stop()" style="display: none; background: #e53935;">🛑 STOP FEEDING</button>
+            </div>
+            <p id="status">System Ready</p>
+            <button class="reverse" onclick="move('reverse')" style="background: #90a4ae; font-size: 0.9rem; padding: 10px;">Reference: Clear Jam (Reverse)</button>
+        </div>
         
         <div class="schedule-container">
-            <label>Daily Schedule</label><br>
+            <h3 style="margin-top:0; color: #0277bd;">Daily Schedule</h3>
             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
                 <label class="switch">
                     <input type="checkbox" id="scheduleEnabled" {% if config.enabled %}checked{% endif %}>
@@ -201,12 +220,8 @@ HTML_TEMPLATE = """
                 </label>
             </div>
             <input type="time" id="scheduleTime" value="{{ config.time }}">
-            <button class="action-btn" onclick="updateSchedule()">Update Schedule</button>
+            <button class="action-btn" onclick="updateSchedule()">Save Schedule</button>
         </div>
-        
-
-
-        <p id="status">System Ready</p>
         
         <div class="history-section">
             <b>Recent Feedings:</b>
@@ -221,7 +236,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        function updateLabel(val) { document.getElementById('stepVal').innerText = val; }
+        function updateLabel(id, val) { document.getElementById(id).innerText = val; }
 
         function toggleStutterOptions() {
             const enabled = document.getElementById('stutterMode').checked;
@@ -235,7 +250,7 @@ HTML_TEMPLATE = """
             const cycle_back = document.getElementById('stutterBack').value;
             
             const status = document.getElementById('status');
-            status.innerText = "Sending command...";
+            status.innerText = "Starting...";
             
             fetch('/move', {
                 method: 'POST',
@@ -250,13 +265,42 @@ HTML_TEMPLATE = """
             })
             .then(res => res.json())
             .then(data => {
-                status.innerText = "Success! ✨";
-                setTimeout(() => { location.reload(); }, 1000); 
-            })
-            .catch(err => { 
-                status.innerText = "Error: Connection Lost"; 
-                status.style.color = "red";
+                if(data.status === "started") {
+                    monitorStatus();
+                } else {
+                    status.innerText = data.message || "Error";
+                }
             });
+        }
+        
+        function stop() {
+            fetch('/stop', {method: 'POST'});
+        }
+
+        function monitorStatus() {
+            const btnDispense = document.getElementById('btnDispense');
+            const btnStop = document.getElementById('btnStop');
+            const status = document.getElementById('status');
+            
+            btnDispense.style.display = 'none';
+            btnStop.style.display = 'block';
+            status.innerText = "Feeding in progress...";
+            status.style.color = "#ff9800";
+            
+            const interval = setInterval(() => {
+                fetch('/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'idle') {
+                        clearInterval(interval);
+                        status.innerText = "Feeding Complete ✨";
+                        status.style.color = "#689f38";
+                        btnDispense.style.display = 'block';
+                        btnStop.style.display = 'none';
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                });
+            }, 1000);
         }
         
         function updateSchedule() {
@@ -276,6 +320,9 @@ HTML_TEMPLATE = """
                 setTimeout(() => { status.innerText = "System Ready"; }, 2000);
             });
         }
+        
+        // Initial setup
+        toggleStutterOptions();
     </script>
 </body>
 </html>
@@ -287,8 +334,36 @@ def index():
     # Reverse to show newest first
     return render_template_string(HTML_TEMPLATE, history=reversed(history), config=current_config)
 
+def run_motor_thread(steps, direction, stutter, cycle_fwd, cycle_back):
+    global motor_status
+    motor_status = "running"
+    stop_event.clear()
+    
+    try:
+        motor_logic.run_motor(
+            steps=steps, 
+            direction=direction, 
+            stutter=stutter, 
+            cycle_fwd=cycle_fwd, 
+            cycle_back=cycle_back,
+            stop_event=stop_event
+        )
+        # Update timestamp only if not stopped? Or always?
+        # Let's record it even if stopped partial
+        now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
+        save_history(now)
+    except Exception as e:
+        print(f"Motor error: {e}")
+    finally:
+        motor_status = "idle"
+
 @app.route('/move', methods=['POST'])
 def move():
+    global motor_thread
+    
+    if motor_status == "running":
+        return jsonify(status="error", message="Motor already running")
+
     data = request.get_json()
     steps = int(data.get('steps', 512))
     direction = data.get('direction', 'forward')
@@ -296,20 +371,29 @@ def move():
     cycle_fwd = int(data.get('cycle_fwd', 100))
     cycle_back = int(data.get('cycle_back', 20))
     
-    motor_logic.run_motor(steps=steps, direction=direction, stutter=stutter, cycle_fwd=cycle_fwd, cycle_back=cycle_back)
-    
-    # Update timestamp
-    now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
-    save_history(now)
-
-    # Persist the steps used if moving forward (feeding)
+    # Persist config
     if direction == 'forward':
         current_config['steps'] = steps
         current_config['stutter_fwd'] = cycle_fwd
         current_config['stutter_back'] = cycle_back
         save_schedule_config()
+    
+    motor_thread = threading.Thread(
+        target=run_motor_thread, 
+        args=(steps, direction, stutter, cycle_fwd, cycle_back)
+    )
+    motor_thread.start()
         
-    return jsonify(status="success", time=now)
+    return jsonify(status="started")
+
+@app.route('/stop', methods=['POST'])
+def stop_motor():
+    stop_event.set()
+    return jsonify(status="stopping")
+
+@app.route('/status')
+def get_status():
+    return jsonify(status=motor_status)
 
 @app.route('/set_schedule', methods=['POST'])
 def set_schedule():
