@@ -166,10 +166,15 @@ HTML_TEMPLATE = """
     <div class="card">
         <h1>🦎 Nacho Feeder</h1>
         
-        <div class="slider-container">
+            <div class="slider-container">
             <label>Amount (Steps)</label><br>
-            <input type="range" id="stepSlider" min="100" max="800" value="{{ config.get('steps', 512) }}" oninput="updateLabel(this.value)">
+            <input type="range" id="stepSlider" min="100" max="2000" value="{{ config.get('steps', 512) }}" oninput="updateLabel(this.value)">
             <div class="val-display" id="stepVal">{{ config.get('steps', 512) }}</div>
+            
+            <label class="switch" style="margin-top: 10px; display: block;">
+                <input type="checkbox" id="stutterMode" checked>
+                Anti-Jam (Stutter) Mode
+            </label>
         </div>
 
         <button class="forward" onclick="move('forward')">🪱 DISPENSE NOW</button>
@@ -208,13 +213,14 @@ HTML_TEMPLATE = """
 
         function move(dir) {
             const steps = document.getElementById('stepSlider').value;
+            const stutter = document.getElementById('stutterMode').checked;
             const status = document.getElementById('status');
             status.innerText = "Sending command...";
             
             fetch('/move', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({direction: dir, steps: parseInt(steps)})
+                body: JSON.stringify({direction: dir, steps: parseInt(steps), stutter: stutter})
             })
             .then(res => res.json())
             .then(data => {
@@ -260,8 +266,9 @@ def move():
     data = request.get_json()
     steps = int(data.get('steps', 512))
     direction = data.get('direction', 'forward')
+    stutter = data.get('stutter', False)
     
-    motor_logic.run_motor(steps=steps, direction=direction)
+    motor_logic.run_motor(steps=steps, direction=direction, stutter=stutter)
     
     # Update timestamp
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
