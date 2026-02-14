@@ -17,7 +17,7 @@ PINS = [17, 18, 27, 22]
 SEQUENCE = [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 1], [1, 0, 0, 1]]
 
 
-def run_motor(steps, direction="forward", stutter=False):
+def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_back=20):
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     for pin in PINS:
@@ -26,10 +26,12 @@ def run_motor(steps, direction="forward", stutter=False):
     try:
         if stutter and direction == "forward":
              # Stutter mode: Move forward significantly, then back a bit to clear jams.
-             # Cycle: Forward 50, Back 20 (Net +30)
-             cycle_fwd = 50
-             cycle_back = 20
+             # Use user-defined cycle amounts (default 100/20)
              cycle_net = cycle_fwd - cycle_back
+             
+             # Prevent infinite loop if net progress is <= 0
+             if cycle_net <= 0:
+                 cycle_net = 1 # Force at least some progress
              
              remaining = steps
              while remaining >= cycle_fwd:

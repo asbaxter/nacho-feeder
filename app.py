@@ -44,6 +44,10 @@ def load_schedule():
                     # Ensure steps exists if loading from older json
                     if "steps" not in current_config:
                         current_config["steps"] = 512
+                    if "stutter_fwd" not in current_config:
+                        current_config["stutter_fwd"] = 100
+                    if "stutter_back" not in current_config:
+                        current_config["stutter_back"] = 20
                     if "camera_name" not in current_config:
                         current_config["camera_name"] = ""
             except:
@@ -172,9 +176,17 @@ HTML_TEMPLATE = """
             <div class="val-display" id="stepVal">{{ config.get('steps', 512) }}</div>
             
             <label class="switch" style="margin-top: 10px; display: block;">
-                <input type="checkbox" id="stutterMode" checked>
+                <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
                 Anti-Jam (Stutter) Mode
             </label>
+            
+            <div id="stutterOptions" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
+                <label style="font-size: 0.9em;">Stutter Forward Steps:</label>
+                <input type="number" id="stutterFwd" value="{{ config.get('stutter_fwd', 100) }}" style="width: 60px; margin-right: 10px;">
+                
+                <label style="font-size: 0.9em;">Back Steps:</label>
+                <input type="number" id="stutterBack" value="{{ config.get('stutter_back', 20) }}" style="width: 60px;">
+            </div>
         </div>
 
         <button class="forward" onclick="move('forward')">🪱 DISPENSE NOW</button>
@@ -211,16 +223,30 @@ HTML_TEMPLATE = """
     <script>
         function updateLabel(val) { document.getElementById('stepVal').innerText = val; }
 
+        function toggleStutterOptions() {
+            const enabled = document.getElementById('stutterMode').checked;
+            document.getElementById('stutterOptions').style.display = enabled ? 'block' : 'none';
+        }
+
         function move(dir) {
             const steps = document.getElementById('stepSlider').value;
             const stutter = document.getElementById('stutterMode').checked;
+            const cycle_fwd = document.getElementById('stutterFwd').value;
+            const cycle_back = document.getElementById('stutterBack').value;
+            
             const status = document.getElementById('status');
             status.innerText = "Sending command...";
             
             fetch('/move', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({direction: dir, steps: parseInt(steps), stutter: stutter})
+                body: JSON.stringify({
+                    direction: dir, 
+                    steps: parseInt(steps), 
+                    stutter: stutter,
+                    cycle_fwd: parseInt(cycle_fwd),
+                    cycle_back: parseInt(cycle_back)
+                })
             })
             .then(res => res.json())
             .then(data => {
@@ -267,8 +293,10 @@ def move():
     steps = int(data.get('steps', 512))
     direction = data.get('direction', 'forward')
     stutter = data.get('stutter', False)
+    cycle_fwd = int(data.get('cycle_fwd', 100))
+    cycle_back = int(data.get('cycle_back', 20))
     
-    motor_logic.run_motor(steps=steps, direction=direction, stutter=stutter)
+    motor_logic.run_motor(steps=steps, direction=direction, stutter=stutter, cycle_fwd=cycle_fwd, cycle_back=cycle_back)
     
     # Update timestamp
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
@@ -277,6 +305,8 @@ def move():
     # Persist the steps used if moving forward (feeding)
     if direction == 'forward':
         current_config['steps'] = steps
+        current_config['stutter_fwd'] = cycle_fwd
+        current_config['stutter_back'] = cycle_back
         save_schedule_config()
         
     return jsonify(status="success", time=now)
