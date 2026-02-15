@@ -217,8 +217,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div id="controls" style="display: flex; gap: 10px;">
-                    <button class="forward" id="btnDispense" onclick="move('forward')" style="flex: 1;">🪱 DISPENSE (FWD)</button>
-                    <button class="reverse" id="btnReverse" onclick="move('reverse')" style="flex: 1; background: #fb8c00;">🔄 REVERSE</button>
+                    <button class="forward" id="btnDispense" onclick="move('forward')" style="flex: 1;">🏁 RUN MOTOR</button>
                     <button class="reverse" id="btnStop" onclick="stop()" style="display: none; background: #e53935; flex: 1;">🛑 STOP FEEDING</button>
                 </div>
                 <p id="status">System Ready</p>
@@ -297,12 +296,10 @@ HTML_TEMPLATE = """
 
         function monitorStatus() {
             const btnDispense = document.getElementById('btnDispense');
-            const btnReverse = document.getElementById('btnReverse');
             const btnStop = document.getElementById('btnStop');
             const status = document.getElementById('status');
             
             btnDispense.style.display = 'none';
-            btnReverse.style.display = 'none';
             btnStop.style.display = 'block';
             status.innerText = "Feeding in progress...";
             status.style.color = "#ff9800";
@@ -316,7 +313,6 @@ HTML_TEMPLATE = """
                         status.innerText = "Feeding Complete ✨";
                         status.style.color = "#689f38";
                         btnDispense.style.display = 'block';
-                        btnReverse.style.display = 'block';
                         btnStop.style.display = 'none';
                         setTimeout(() => location.reload(), 1500);
                     }

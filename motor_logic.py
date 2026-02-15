@@ -72,14 +72,5 @@ def _move_raw(steps, direction, stop_event=None):
                 GPIO.output(PINS[i], step[i])
             time.sleep(0.004) # Adjust for speed
 
-def _move_raw(steps, direction, stop_event=None):
-    # Reverse sequence if direction is 'reverse'
-    seq = SEQUENCE if direction == "forward" else list(reversed(SEQUENCE))
-    
-    for _ in range(steps):
-        if stop_event and stop_event.is_set(): return
-        for step in seq:
-            for i in range(4):
-                GPIO.output(PINS[i], step[i])
-            time.sleep(0.004) # Adjust for speed
+
 
