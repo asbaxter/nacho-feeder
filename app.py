@@ -196,12 +196,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div style="margin: 15px 0; border-top: 1px dashed #ccc; padding-top: 10px;">
-                    <label class="switch">
-                        <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
-                        Anti-Jam / Stutter Mode
-                    </label>
-                    
-                    <div id="stutterOptions" style="margin-top: 10px;">
+                    <div id="stutterOptions">
                         <label style="font-size: 0.9em;">Forward Cycle:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="range" id="stutterFwd" min="0" max="1000" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
@@ -255,14 +250,11 @@ HTML_TEMPLATE = """
     <script>
         function updateLabel(id, val) { document.getElementById(id).innerText = val; }
 
-        function toggleStutterOptions() {
-            const enabled = document.getElementById('stutterMode').checked;
-            document.getElementById('stutterOptions').style.display = enabled ? 'block' : 'none';
-        }
+
 
         function move(dir) {
             const steps = document.getElementById('stepSlider').value;
-            const stutter = document.getElementById('stutterMode').checked;
+            const stutter = true;
             const cycle_fwd = document.getElementById('stutterFwd').value;
             const cycle_back = document.getElementById('stutterBack').value;
             

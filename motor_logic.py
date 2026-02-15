@@ -24,38 +24,45 @@ def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_ba
         GPIO.setup(pin, GPIO.OUT)
     
     try:
-        if stutter and direction == "forward":
-             # Stutter mode: Move forward significantly, then back a bit to clear jams.
-             # Count TOTAL steps (fwd + back) to control total run time/activity.
-             
-             total_run = 0
-             cycle_total = cycle_fwd + cycle_back
-             if cycle_total <= 0: cycle_total = 1 # Prevent infinite loop
-             
-             while total_run < steps:
-                 if stop_event and stop_event.is_set(): return
-                 
-                 # Check if we can do a full cycle
-                 if total_run + cycle_total <= steps:
-                     _move_raw(cycle_fwd, "forward", stop_event)
-                     if stop_event and stop_event.is_set(): return
-                     time.sleep(0.1)
-                     
-                     _move_raw(cycle_back, "reverse", stop_event)
-                     if stop_event and stop_event.is_set(): return
-                     time.sleep(0.1)
-                     
-                     total_run += cycle_total
-                 else:
-                     # Run remaining steps forward
-                     remaining = steps - total_run
-                     if remaining > 0:
-                         _move_raw(remaining, "forward", stop_event)
-                     break
-        else:
-            # Standard operation
-            _move_raw(steps, direction, stop_event)
+        # "Always Stutter" / Cycle Logic
+        # The 'direction' param is largely ignored now; 
+        # actual movement is dictated by cycle_fwd vs cycle_back ratios.
+        
+        total_run = 0
+        
+        # If both are 0, default to standard forward to prevent infinite loop/no-op
+        if cycle_fwd == 0 and cycle_back == 0:
+            cycle_fwd = 100
+
+        while total_run < steps:
+            if stop_event and stop_event.is_set(): return
             
+            # --- Forward Phase ---
+            remaining = steps - total_run
+            if remaining <= 0: break
+            
+            to_move = min(cycle_fwd, remaining)
+            if to_move > 0:
+                _move_raw(to_move, "forward", stop_event)
+                total_run += to_move
+                if stop_event and stop_event.is_set(): return
+            
+            # Break if done
+            if total_run >= steps: break
+            
+            # --- Reverse Phase ---
+            remaining = steps - total_run
+            if remaining <= 0: break
+            
+            to_move = min(cycle_back, remaining)
+            if to_move > 0:
+                # Small pause before reversing direction
+                time.sleep(0.1)
+                _move_raw(to_move, "reverse", stop_event)
+                total_run += to_move
+                if stop_event and stop_event.is_set(): return
+                time.sleep(0.1) # Pause after reverse
+                
     finally:
         # Turn off pins to save 9V battery
         for pin in PINS:
