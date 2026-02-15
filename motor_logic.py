@@ -14,7 +14,17 @@ except ImportError:
 import time
 
 PINS = [17, 18, 27, 22]
-SEQUENCE = [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 1], [1, 0, 0, 1]]
+# Half-step sequence (8 steps) for smoother movement and higher torque
+SEQUENCE = [
+    [1, 0, 0, 0],
+    [1, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 1],
+    [0, 0, 0, 1],
+    [1, 0, 0, 1]
+]
 
 
 def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_back=20, stop_event=None):
