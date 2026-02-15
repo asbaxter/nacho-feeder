@@ -319,6 +319,17 @@ HTML_TEMPLATE = """
                 });
             }, 1000);
         }
+
+        // Check status on page load in case of refresh during feeding
+        window.addEventListener('load', () => {
+             fetch('/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'running') {
+                        monitorStatus();
+                    }
+                });
+        });        }
         
         function updateSchedule() {
             const time = document.getElementById('scheduleTime').value;

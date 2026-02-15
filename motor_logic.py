@@ -71,7 +71,7 @@ def _move_raw(steps, direction, stop_event=None):
         for step in seq:
             for i in range(4):
                 GPIO.output(PINS[i], step[i])
-            time.sleep(0.004) # Adjust for speed
+            time.sleep(0.005) # Slower speed = Higher Torque
 
 
 
