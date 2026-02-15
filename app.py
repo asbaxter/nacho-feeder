@@ -167,10 +167,12 @@ HTML_TEMPLATE = """
         .history-list li { padding: 5px 0; border-bottom: 1px solid #eee; }
         
         .schedule-container {
-            background: #e1f5fe;
-            padding: 15px;
+            background: #e3f2fd; /* Light Blue */
+            padding: 20px;
             border-radius: 15px;
             margin: 20px 0;
+            border: 2px solid #90caf9;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         input[type=time] {
             padding: 10px;
@@ -220,15 +222,23 @@ HTML_TEMPLATE = """
             
             <!-- Right Column: Schedule & Logic -->
             <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                <div class="schedule-container" style="margin: 0;">
-                    <h3 style="margin-top:0; color: #0277bd;">Daily Schedule</h3>
-                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                <div class="schedule-container" id="scheduleCard" style="margin: 0;">
+                    <h3 style="margin-top:0; color: #0277bd;">📅 Daily Schedule</h3>
+                    
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <p id="nextRun" style="font-size: 1.1em; font-weight: bold; color: #546e7a; margin: 5px 0;">
+                            Loading...
+                        </p>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px; gap: 10px;">
                         <label class="switch">
-                            <input type="checkbox" id="scheduleEnabled" {% if config.enabled %}checked{% endif %}>
+                            <input type="checkbox" id="scheduleEnabled" {% if config.enabled %}checked{% endif %} onchange="updateNextRunLabel()">
                             Enable
                         </label>
+                        <input type="time" id="scheduleTime" value="{{ config.time }}" onchange="updateNextRunLabel()">
                     </div>
-                    <input type="time" id="scheduleTime" value="{{ config.time }}">
+                    
                     <button class="action-btn" onclick="updateSchedule()">Save Schedule</button>
                 </div>
 
@@ -342,7 +352,30 @@ HTML_TEMPLATE = """
             });
         }
         
+        function updateNextRunLabel() {
+            const enabled = document.getElementById('scheduleEnabled').checked;
+            const time = document.getElementById('scheduleTime').value;
+            const label = document.getElementById('nextRun');
+            
+            if (!enabled) {
+                label.innerText = "⛔ Schedule Disabled";
+                label.style.color = "#b0bec5"; // Gray
+                return;
+            }
+            
+            // formatting time to AM/PM for display
+            const [hours, minutes] = time.split(':');
+            const d = new Date();
+            d.setHours(hours);
+            d.setMinutes(minutes);
+            const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            label.innerText = "⚡ Next Feed: Daily at " + timeString;
+            label.style.color = "#0277bd"; // Blue
+        }
+
         // Initial setup
+        updateNextRunLabel();
 
     </script>
 </body>
