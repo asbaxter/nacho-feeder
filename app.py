@@ -321,7 +321,8 @@ HTML_TEMPLATE = """
                         monitorStatus();
                     }
                 });
-        });        }
+        });
+
         
         function updateSchedule() {
             const time = document.getElementById('scheduleTime').value;
@@ -342,7 +343,7 @@ HTML_TEMPLATE = """
         }
         
         // Initial setup
-        toggleStutterOptions();
+
     </script>
 </body>
 </html>
