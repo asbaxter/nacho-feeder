@@ -68,7 +68,7 @@ def feed_job():
     steps = current_config.get("steps", 512)
     motor_logic.run_motor(steps=steps, direction='forward')
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
-    save_history(now)
+    save_history(now + " - 🔴 (Scheduled)")
 
 def update_scheduler():
     schedule.clear()
@@ -214,7 +214,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div id="controls" style="display: flex; gap: 10px;">
-                    <button class="forward" id="btnDispense" onclick="move('forward')" style="flex: 1;">🏁 RUN MOTOR</button>
+                    <button class="forward" id="btnDispense" onclick="move('forward')" style="flex: 1;">DISPENSE</button>
                     <button class="reverse" id="btnStop" onclick="stop()" style="display: none; background: #e53935; flex: 1;">🛑 STOP FEEDING</button>
                 </div>
                 <p id="status">System Ready</p>
@@ -405,7 +405,7 @@ def run_motor_thread(steps, direction, stutter, cycle_fwd, cycle_back):
         # Update timestamp only if not stopped? Or always?
         # Let's record it even if stopped partial
         now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
-        save_history(now)
+        save_history(now + " - 🟢 (Manual)")
     except Exception as e:
         print(f"Motor error: {e}")
     finally:
