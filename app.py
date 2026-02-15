@@ -204,13 +204,13 @@ HTML_TEMPLATE = """
                     <div id="stutterOptions" style="margin-top: 10px;">
                         <label style="font-size: 0.9em;">Forward Cycle:</label>
                         <div style="display: flex; align-items: center;">
-                            <input type="range" id="stutterFwd" min="10" max="500" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
+                            <input type="range" id="stutterFwd" min="0" max="1000" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
                             <span style="min-width: 40px; text-align: right; font-weight: bold;" id="fwdVal">{{ config.get('stutter_fwd', 100) }}</span>
                         </div>
                         
                         <label style="font-size: 0.9em;">Reverse Cycle:</label>
                         <div style="display: flex; align-items: center;">
-                            <input type="range" id="stutterBack" min="5" max="100" value="{{ config.get('stutter_back', 20) }}" oninput="updateLabel('backVal', this.value)" style="flex-grow: 1;">
+                            <input type="range" id="stutterBack" min="0" max="1000" value="{{ config.get('stutter_back', 20) }}" oninput="updateLabel('backVal', this.value)" style="flex-grow: 1;">
                             <span style="min-width: 40px; text-align: right; font-weight: bold;" id="backVal">{{ config.get('stutter_back', 20) }}</span>
                         </div>
                     </div>

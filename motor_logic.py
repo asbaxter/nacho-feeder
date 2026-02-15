@@ -30,6 +30,7 @@ def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_ba
              
              total_run = 0
              cycle_total = cycle_fwd + cycle_back
+             if cycle_total <= 0: cycle_total = 1 # Prevent infinite loop
              
              while total_run < steps:
                  if stop_event and stop_event.is_set(): return
