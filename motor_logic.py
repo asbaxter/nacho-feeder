@@ -26,31 +26,31 @@ def run_motor(steps, direction="forward", stutter=False, cycle_fwd=100, cycle_ba
     try:
         if stutter and direction == "forward":
              # Stutter mode: Move forward significantly, then back a bit to clear jams.
-             # Use user-defined cycle amounts (default 100/20)
-             cycle_net = cycle_fwd - cycle_back
+             # Count TOTAL steps (fwd + back) to control total run time/activity.
              
-             # Prevent infinite loop if net progress is <= 0
-             if cycle_net <= 0:
-                 cycle_net = 1 # Force at least some progress
+             total_run = 0
+             cycle_total = cycle_fwd + cycle_back
              
-             remaining = steps
-             while remaining >= cycle_fwd:
+             while total_run < steps:
                  if stop_event and stop_event.is_set(): return
-                 _move_raw(cycle_fwd, "forward", stop_event)
                  
-                 if stop_event and stop_event.is_set(): return
-                 time.sleep(0.1)
-                 
-                 _move_raw(cycle_back, "reverse", stop_event)
-                 
-                 if stop_event and stop_event.is_set(): return
-                 time.sleep(0.1)
-                 
-                 remaining -= cycle_net
-            
-             # Finish remaining steps
-             if remaining > 0 and not (stop_event and stop_event.is_set()):
-                 _move_raw(remaining, "forward", stop_event)
+                 # Check if we can do a full cycle
+                 if total_run + cycle_total <= steps:
+                     _move_raw(cycle_fwd, "forward", stop_event)
+                     if stop_event and stop_event.is_set(): return
+                     time.sleep(0.1)
+                     
+                     _move_raw(cycle_back, "reverse", stop_event)
+                     if stop_event and stop_event.is_set(): return
+                     time.sleep(0.1)
+                     
+                     total_run += cycle_total
+                 else:
+                     # Run remaining steps forward
+                     remaining = steps - total_run
+                     if remaining > 0:
+                         _move_raw(remaining, "forward", stop_event)
+                     break
         else:
             # Standard operation
             _move_raw(steps, direction, stop_event)

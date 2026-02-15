@@ -113,10 +113,21 @@ HTML_TEMPLATE = """
             border-radius: 25px; 
             box-shadow: 0 15px 35px rgba(0,0,0,0.3); 
             width: 95%; 
-            max-width: 400px;
+            width: 95%; 
+            max-width: 800px; /* Wider for desktop */
             text-align: center;
         }
-        h1 { color: #37474f; margin-bottom: 10px; font-size: 1.8rem; }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            text-align: left;
+        }
+        @media (max-width: 600px) {
+            .main-content {
+                flex-direction: column;
+            }
+        }
+        h1 { color: #37474f; margin-bottom: 20px; font-size: 2rem; text-align: center; }
         .slider-container { 
             background: #f1f8e9;
             padding: 15px;
@@ -173,67 +184,74 @@ HTML_TEMPLATE = """
     <div class="card">
         <h1>🦎 Nacho Feeder</h1>
         
-        <div class="schedule-container" style="background: #fff3e0; border: 1px solid #ffe0b2;">
-            <h3 style="margin-top:0; color: #ef6c00;">Feeding Controls</h3>
-            
-            <label>Total Amount (Steps)</label>
-            <div style="display: flex; align-items: center;">
-                <input type="range" id="stepSlider" min="100" max="2500" value="{{ config.get('steps', 512) }}" oninput="updateLabel('stepVal', this.value)" style="flex-grow: 1;">
-                <span class="val-display" id="stepVal" style="min-width: 60px; text-align: right; font-size: 1.2rem;">{{ config.get('steps', 512) }}</span>
-            </div>
-
-            <div style="margin: 15px 0; border-top: 1px dashed #ccc; padding-top: 10px;">
-                <label class="switch">
-                    <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
-                    Anti-Jam / Stutter Mode
-                </label>
+        <div class="main-content">
+            <!-- Left Column: Controls -->
+            <div class="schedule-container" style="background: #fff3e0; border: 1px solid #ffe0b2; flex: 1; margin:0;">
+                <h3 style="margin-top:0; color: #ef6c00;">Feeding Controls</h3>
                 
-                <div id="stutterOptions" style="margin-top: 10px;">
-                    <label style="font-size: 0.9em;">Forward Cycle:</label>
-                    <div style="display: flex; align-items: center;">
-                        <input type="range" id="stutterFwd" min="10" max="500" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
-                        <span style="min-width: 40px; text-align: right; font-weight: bold;" id="fwdVal">{{ config.get('stutter_fwd', 100) }}</span>
-                    </div>
+                <label>Total Amount (Steps)</label>
+                <div style="display: flex; align-items: center;">
+                    <input type="range" id="stepSlider" min="100" max="10000" value="{{ config.get('steps', 512) }}" oninput="updateLabel('stepVal', this.value)" style="flex-grow: 1;">
+                    <span class="val-display" id="stepVal" style="min-width: 60px; text-align: right; font-size: 1.2rem;">{{ config.get('steps', 512) }}</span>
+                </div>
+
+                <div style="margin: 15px 0; border-top: 1px dashed #ccc; padding-top: 10px;">
+                    <label class="switch">
+                        <input type="checkbox" id="stutterMode" checked onchange="toggleStutterOptions()">
+                        Anti-Jam / Stutter Mode
+                    </label>
                     
-                    <label style="font-size: 0.9em;">Reverse Cycle:</label>
-                    <div style="display: flex; align-items: center;">
-                        <input type="range" id="stutterBack" min="5" max="100" value="{{ config.get('stutter_back', 20) }}" oninput="updateLabel('backVal', this.value)" style="flex-grow: 1;">
-                        <span style="min-width: 40px; text-align: right; font-weight: bold;" id="backVal">{{ config.get('stutter_back', 20) }}</span>
+                    <div id="stutterOptions" style="margin-top: 10px;">
+                        <label style="font-size: 0.9em;">Forward Cycle:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="range" id="stutterFwd" min="10" max="500" value="{{ config.get('stutter_fwd', 100) }}" oninput="updateLabel('fwdVal', this.value)" style="flex-grow: 1;">
+                            <span style="min-width: 40px; text-align: right; font-weight: bold;" id="fwdVal">{{ config.get('stutter_fwd', 100) }}</span>
+                        </div>
+                        
+                        <label style="font-size: 0.9em;">Reverse Cycle:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="range" id="stutterBack" min="5" max="100" value="{{ config.get('stutter_back', 20) }}" oninput="updateLabel('backVal', this.value)" style="flex-grow: 1;">
+                            <span style="min-width: 40px; text-align: right; font-weight: bold;" id="backVal">{{ config.get('stutter_back', 20) }}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="controls">
-                <button class="forward" id="btnDispense" onclick="move('forward')">🪱 DISPENSE NOW</button>
-                <button class="reverse" id="btnStop" onclick="stop()" style="display: none; background: #e53935;">🛑 STOP FEEDING</button>
+                <div id="controls">
+                    <button class="forward" id="btnDispense" onclick="move('forward')">🪱 DISPENSE NOW</button>
+                    <button class="reverse" id="btnStop" onclick="stop()" style="display: none; background: #e53935;">🛑 STOP FEEDING</button>
+                </div>
+                <p id="status">System Ready</p>
+                <button class="reverse" onclick="move('reverse')" style="background: #90a4ae; font-size: 0.9rem; padding: 10px;">Reference: Clear Jam (Reverse)</button>
             </div>
-            <p id="status">System Ready</p>
-            <button class="reverse" onclick="move('reverse')" style="background: #90a4ae; font-size: 0.9rem; padding: 10px;">Reference: Clear Jam (Reverse)</button>
-        </div>
-        
-        <div class="schedule-container">
-            <h3 style="margin-top:0; color: #0277bd;">Daily Schedule</h3>
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
-                <label class="switch">
-                    <input type="checkbox" id="scheduleEnabled" {% if config.enabled %}checked{% endif %}>
-                    Enable
-                </label>
+            
+            <!-- Right Column: Schedule & Logic -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                <div class="schedule-container" style="margin: 0;">
+                    <h3 style="margin-top:0; color: #0277bd;">Daily Schedule</h3>
+                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                        <label class="switch">
+                            <input type="checkbox" id="scheduleEnabled" {% if config.enabled %}checked{% endif %}>
+                            Enable
+                        </label>
+                    </div>
+                    <input type="time" id="scheduleTime" value="{{ config.time }}">
+                    <button class="action-btn" onclick="updateSchedule()">Save Schedule</button>
+                </div>
+
+                <div class="history-section" style="margin:0; border:none; background: #f5f5f5; padding: 10px; border-radius: 15px;">
+                     <details>
+                        <summary style="cursor: pointer; font-weight: bold; color: #546e7a;">📜 Recent Feedings Log</summary>
+                        <ul class="history-list">
+                            {% for item in history %}
+                            <li>{{ item }}</li>
+                            {% else %}
+                            <li>No recent feedings</li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                </div>
             </div>
-            <input type="time" id="scheduleTime" value="{{ config.time }}">
-            <button class="action-btn" onclick="updateSchedule()">Save Schedule</button>
         </div>
-        
-        <div class="history-section">
-            <b>Recent Feedings:</b>
-            <ul class="history-list">
-                {% for item in history %}
-                <li>{{ item }}</li>
-                {% else %}
-                <li>No recent feedings</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
 
     <script>
         function updateLabel(id, val) { document.getElementById(id).innerText = val; }
