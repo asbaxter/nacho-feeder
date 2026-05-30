@@ -45,14 +45,14 @@ A stepper motor drives a spiral auger screw to push food portions forward and ou
 ## Hardware Specifications
 
 *   **Controller**: Raspberry Pi
-*   **Actuator**: 28BYJ-48 5V Stepper Motor + ULN2003 Driver Board
+*   **Actuator**: 28BYJ-48 Stepper Motor + ULN2003 Driver Board
 *   **Wiring Connection**:
     *   IN1 -> GPIO 17 (BCM)
     *   IN2 -> GPIO 18 (BCM)
     *   IN3 -> GPIO 27 (BCM)
     *   IN4 -> GPIO 22 (BCM)
 *   **Dispenser Casing**: [Thingiverse 3D Model #3966726](https://www.thingiverse.com/thing:3966726) with a custom-printed extender column.
-*   **Power Supply**: External power source recommended for the motor driver to prevent excessive current draw from the Raspberry Pi.
+*   **Power Supply**: The motor driver was powered separately by 2 AA batteries (~3V) to prevent drawing too much current from the Raspberry Pi.
 
 ---
 
@@ -60,11 +60,11 @@ A stepper motor drives a spiral auger screw to push food portions forward and ou
 
 While this project is fully functional as a prototype, several real-world hardware and mechanical limitations were identified during testing:
 
-### 1. Stepper Motor Torque Constraints
-The default 28BYJ-48 stepper motor is relatively low-torque. Depending on the size, weight, and shape of the pet food used, the motor will stall or jam frequently when trying to force food through the auger. 
+### 1. Stepper Motor Torque & Power Constraints
+The default 28BYJ-48 stepper motor is relatively low-torque. In this configuration, the motor driver was powered separately by **2 AA batteries (~3V)**. Because the 28BYJ-48 is typically rated for 5V or 12V operation, powering it at 3V significantly reduced its output torque. Depending on the size, weight, and shape of the pet food used, the motor would stall or jam frequently when trying to force food through the auger.
 
 ### 2. Software Jam Mitigation (Stutter Logic)
-To combat motor stalls, a "stutter" algorithm is implemented in `motor_logic.py`. The motor runs forward for a cycle (e.g., 100 steps) and then briefly reverses (e.g., 20 steps) before resuming. This back-and-forth action helps shake the food loose. While it mitigates some jams, it does not solve severe blockages caused by motor torque limitations.
+To combat motor stalls, a "stutter" algorithm is implemented in `motor_logic.py`. The motor runs forward for a cycle (e.g., 100 steps) and then briefly reverses (e.g., 20 steps) before resuming. This back-and-forth action helps shake the food loose. While it mitigates some jams, it does not solve severe blockages caused by motor torque and voltage limitations.
 
 ### 3. 3D Print Tolerances & Roughness
 Smoothness and tolerances of the 3D-printed auger screw and the inner casing walls are critical:
@@ -73,7 +73,8 @@ Smoothness and tolerances of the 3D-printed auger screw and the inner casing wal
 
 ### 4. Design Recommendations for Future Iterations
 If rebuilding this feeder, a different approach is recommended:
-*   Upgrading to a high-torque NEMA 17 or geared DC motor.
+*   Upgrading to a high-torque NEMA 17 stepper or a geared DC motor.
+*   Increasing the motor supply voltage to its rated specification (at least 5V or 12V depending on the motor).
 *   Redesigning the dispensing mechanism entirely (e.g., a gravity-fed trapdoor or horizontal conveyor style instead of a vertical/tight-tolerance auger screw).
 
 ---
