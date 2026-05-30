@@ -66,7 +66,15 @@ def save_schedule_config():
 def feed_job():
     print(f"Executing scheduled feed at {datetime.datetime.now()}")
     steps = current_config.get("steps", 512)
-    motor_logic.run_motor(steps=steps, direction='forward')
+    stutter_fwd = current_config.get("stutter_fwd", 100)
+    stutter_back = current_config.get("stutter_back", 20)
+    motor_logic.run_motor(
+        steps=steps, 
+        direction='forward', 
+        stutter=True, 
+        cycle_fwd=stutter_fwd, 
+        cycle_back=stutter_back
+    )
     now = datetime.datetime.now().strftime("%I:%M %p (%b %d)")
     save_history(now + " - 🔴 (Scheduled)")
 
