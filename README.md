@@ -1,139 +1,111 @@
-# 🦎 Nacho Feeder
+# Nacho Feeder
 
-[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
-[![Language](https://img.shields.io/badge/language-Python%203-blue.svg)](https://www.python.org/)
-[![VPN](https://img.shields.io/badge/VPN-Tailscale-orange.svg)](https://tailscale.com/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-
-An automated pet feeding system built for **Nacho** the lizard (or any small pet!). It combines custom 3D-printed hardware, a Raspberry Pi-driven stepper motor, a modern Flask-based control portal, and secure remote VPN management.
+An automated pet feeding system designed for Nacho the lizard. The project integrates a 3D-printed hopper dispenser, a Raspberry Pi-driven stepper motor, a Flask-based web control portal, and a secure Tailscale VPN tunnel for remote mobile access.
 
 ---
 
-## 📸 Overview
+## Project Overview
 
-The **Nacho Feeder** solves the problem of remote pet feeding. It features a custom 3D-printed enclosure containing a food hopper and a spiral auger screw. A 5V/12V stepper motor rotates the screw, pushing exact portions of food forward and out of the dispenser. 
+This repository contains the software and configuration for a smart pet feeder. The physical unit is based on the [Thingiverse 3D-Printed Feeder design (Thing #3966726)](https://www.thingiverse.com/thing:3966726), modified with a custom-designed extender to increase food storage capacity. 
 
-The software component runs on a Raspberry Pi, exposing a mobile-friendly web app. Using **Tailscale VPN**, the dashboard can be accessed securely from anywhere in the world without exposing open ports to the public internet.
+A stepper motor drives a spiral auger screw to push food portions forward and out of the dispenser. The software, running on a Raspberry Pi, hosts a lightweight web interface to control the feeding process, set schedules, and monitor historical feeding logs. For secure remote operation, a private Tailscale VPN tunnel is used, removing the need to expose ports to the public internet.
 
 ```
-                  ┌────────────────────────────────────────┐
-                  │            Tailscale VPN               │
-                  │       (Secure Mobile Access)           │
-                  └───────────────────┬────────────────────┘
-                                      │
-                                      ▼
-┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│  Mobile/Desktop  ├──────►│   Flask Server   ├──────►│   RPi.GPIO Pins  │
-│     Browser      │       │     (app.py)     │       │  [17, 18, 27, 22]│
-└──────────────────┘       └────────┬─────────┘       └────────┬─────────┘
-                                    │                          │
-                                    ▼                          ▼
-                         ┌────────────────────┐       ┌──────────────────┐
-                         │  SQLite/JSON Config│       │  Stepper Motor   │
-                         │ (schedule_config)  │       │  (Auger Screw)   │
-                         └────────────────────┘       └──────────────────┘
+                  +----------------------------------------+
+                  |            Tailscale VPN               |
+                  |       (Secure Mobile Access)           |
+                  +-------------------+--------------------+
+                                      |
+                                      v
++------------------+       +------------------+       +------------------+
+|  Mobile/Desktop  |------>|   Flask Server   |------>|   RPi.GPIO Pins  |
+|     Browser      |       |     (app.py)     |       |  [17, 18, 27, 22]|
++------------------+       +------------------+       +------------------+
+                                    |                          |
+                                    v                          v
+                         +--------------------+       +------------------+
+                         | SQLite/JSON Config |       |  Stepper Motor   |
+                         | (schedule_config)  |       |  (Auger Screw)   |
+                         +--------------------+       +------------------+
 ```
 
 ---
 
-## ✨ Features
+## Features
 
-- **📱 Responsive Web Portal**: A beautiful, mobile-friendly interface designed to trigger feedings instantly, adjust schedules, and view logs.
-- **🔄 Smart Anti-Jam "Stutter" Algorithm**: Runs the auger screw forward and backward in cycles (e.g., 100 steps forward, 20 steps back) to agitate the food, prevent clogs, and ensure consistent portions.
-- **🕒 Dynamic Scheduler**: Setup custom daily feed times that persist across restarts in a lightweight JSON configuration.
-- **🔋 Battery & Motor Protection**: Automatically shuts down motor pins immediately after feeding to prevent overheating and save battery/power.
-- **🛡️ Secure Remote Access**: Runs behind a private **Tailscale VPN** tunnel, allowing safe remote operation and troubleshooting from your phone, even when away from home.
-- **📜 Detailed Feeding Log**: Keeps track of recent automated and manual feedings with visual indicators.
-
----
-
-## 🛠️ Hardware Stack
-
-- **Controller**: Raspberry Pi (Runs the Python Flask server)
-- **Actuator**: 28BYJ-48 5V Stepper Motor (or similar 4-phase stepper motor)
-- **Driver Board**: ULN2003 Driver Board (connected to GPIO pins `17`, `18`, `27`, and `22`)
-- **Mechanicals**: 
-  - 3D-printed hopper/dispenser casing
-  - 3D-printed spiral auger screw
-- **Power**: External power supply for the motor (highly recommended to avoid drawing too much current from the Raspberry Pi GPIOs)
+*   **Responsive Web Portal**: Clean dashboard to trigger manual feedings, configure daily schedules, and adjust portions.
+*   **Stutter Motor Movement**: Implements alternating cycles (forward/reverse phases) in an attempt to agitate the food and clear minor blockages.
+*   **Persistent Scheduler**: Schedules are managed through a dynamic scheduler and saved locally in a JSON configuration file.
+*   **Automatic Pin Cleanup**: Shuts down the GPIO pins immediately after rotation is completed to prevent motor overheating and conserve power.
+*   **Secure Networking**: Operates within a private Tailscale network to keep the web application private and accessible from mobile devices on the go.
+*   **Recent Feedings Log**: Displays a historical record of manual and scheduled feedings.
 
 ---
 
-## 💻 Software Stack
+## Hardware Specifications
 
-- **Backend**: Python 3, Flask, `schedule`
-- **Frontend**: Responsive HTML5 + CSS3 Grid/Flexbox
-- **Libraries**:
-  - `RPi.GPIO` for direct hardware control (with automatic mock fallback for easy local desktop testing)
-  - `python-dotenv` for environment management
+*   **Controller**: Raspberry Pi
+*   **Actuator**: 28BYJ-48 5V Stepper Motor + ULN2003 Driver Board
+*   **Wiring Connection**:
+    *   IN1 -> GPIO 17 (BCM)
+    *   IN2 -> GPIO 18 (BCM)
+    *   IN3 -> GPIO 27 (BCM)
+    *   IN4 -> GPIO 22 (BCM)
+*   **Dispenser Casing**: [Thingiverse 3D Model #3966726](https://www.thingiverse.com/thing:3966726) with a custom-printed extender column.
+*   **Power Supply**: External power source recommended for the motor driver to prevent excessive current draw from the Raspberry Pi.
 
 ---
 
-## 🚀 Quick Start
+## Engineering Notes, Limitations & Lessons Learned
 
-### 1. Hardware Connection (GPIO BCM Mode)
+While this project is fully functional as a prototype, several real-world hardware and mechanical limitations were identified during testing:
 
-Connect your stepper motor driver to the Raspberry Pi GPIO pins as follows:
+### 1. Stepper Motor Torque Constraints
+The default 28BYJ-48 stepper motor is relatively low-torque. Depending on the size, weight, and shape of the pet food used, the motor will stall or jam frequently when trying to force food through the auger. 
 
-| Motor Driver Input | Raspberry Pi GPIO Pin (BCM) |
-|--------------------|-----------------------------|
-| IN1                | GPIO 17                     |
-| IN2                | GPIO 18                     |
-| IN3                | GPIO 27                     |
-| IN4                | GPIO 22                     |
+### 2. Software Jam Mitigation (Stutter Logic)
+To combat motor stalls, a "stutter" algorithm is implemented in `motor_logic.py`. The motor runs forward for a cycle (e.g., 100 steps) and then briefly reverses (e.g., 20 steps) before resuming. This back-and-forth action helps shake the food loose. While it mitigates some jams, it does not solve severe blockages caused by motor torque limitations.
 
-### 2. Software Installation
+### 3. 3D Print Tolerances & Roughness
+Smoothness and tolerances of the 3D-printed auger screw and the inner casing walls are critical:
+*   If the print has rough layer lines or minor surface imperfections, the auger can easily snag or bind against the casing walls.
+*   **Solution**: To make this mechanical setup work reliably, you must either print the parts at a very high quality (low layer heights) or manually sand/finish the inner surfaces of the casing and the screw to ensure smooth friction-free contact.
 
-Clone the repository to your Raspberry Pi:
+### 4. Design Recommendations for Future Iterations
+If rebuilding this feeder, a different approach is recommended:
+*   Upgrading to a high-torque NEMA 17 or geared DC motor.
+*   Redesigning the dispensing mechanism entirely (e.g., a gravity-fed trapdoor or horizontal conveyor style instead of a vertical/tight-tolerance auger screw).
+
+---
+
+## Setup & Local Installation
+
+### 1. Virtual Environment Setup
+Clone the repository and install the dependencies:
 ```bash
 git clone https://github.com/asbaxter/nacho-feeder.git
 cd nacho-feeder
-```
 
-Set up a virtual environment and install the required dependencies:
-```bash
-# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Local Configuration
-
-Create a `.env` file from the template:
+### 2. Configuration
+Copy the environment template and configure your local settings:
 ```bash
 cp .env.template .env
 ```
-Fill in the parameters (e.g., if you set up optional camera systems or specific ports).
 
-### 4. Running the Application
-
-To run the server in development mode:
+### 3. Execution
+Run the Flask server:
 ```bash
 python app.py
 ```
-The control portal will be live at `http://<your-pi-ip>:5000`.
-
-*For detailed instructions on running this as a permanent background service on system boot, see [DEPLOY.md](file:///c:/Users/asbax/Desktop/Projects/nacho-feeder/DEPLOY.md).*
+The application will listen on port `5000`. For detailed instructions on setting this up as a background systemd service, see [DEPLOY.md](file:///c:/Users/asbax/Desktop/Projects/nacho-feeder/DEPLOY.md).
 
 ---
 
-## 🔒 Security & Tailscale VPN Integration
+## License
 
-Instead of exposing your home network by port-forwarding port `5000` (which leaves your Raspberry Pi vulnerable to external attacks), Nacho Feeder is designed to work in conjunction with **Tailscale**:
-
-1. Install **Tailscale** on your Raspberry Pi:
-   ```bash
-   curl -fsSL https://tailscale.com/install.sh | sh
-   sudo tailscale up
-   ```
-2. Install **Tailscale** on your mobile phone or computer.
-3. Access your feeder dashboard securely from anywhere using the private Tailscale IP (e.g., `http://100.x.y.z:5000`) or your Tailscale MagicDNS name!
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
